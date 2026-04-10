@@ -1,6 +1,6 @@
-from flask import Flask, render_template, Response
-import cv2
+from flask import Flask, render_template, request, jsonify
 import numpy as np
+import cv2
 import random
 from tensorflow.keras.models import load_model
 
@@ -9,16 +9,12 @@ app = Flask(__name__)
 # Load model
 model = load_model("model.hdf5")
 
-# Face detector
+# Face detector (optional use)
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
 labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
-
-camera = cv2.VideoCapture(0)
-
-# ---------------- EMOTION DATA ---------------- #
 
 emotion_data_map = {
     "Angry": {
@@ -51,85 +47,37 @@ emotion_data_map = {
     }
 }
 
-# ---------------- GLOBAL VARIABLES ---------------- #
 
-current_emotion = "Neutral"
-current_confidence = 0.0
-current_quote = ""
-current_activity = ""
-
-# ---------------- VIDEO STREAM ---------------- #
-
-def generate_frames():
-    global current_emotion, current_confidence, current_quote, current_activity
-
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-        for (x, y, w, h) in faces:
-            face = frame[y:y+h, x:x+w]
-
-            face = cv2.resize(face, (96, 96))
-            face = face.astype("float32") / 255.0
-            face = np.expand_dims(face, axis=0)
-
-            prediction = model.predict(face, verbose=0)[0]
-            index = np.argmax(prediction)
-
-            current_emotion = labels[index]
-            current_confidence = float(prediction[index]) * 100
-
-            current_quote = random.choice(
-                emotion_data_map[current_emotion]["quotes"]
-            )
-            current_activity = emotion_data_map[current_emotion]["activity"]
-
-            # Draw rectangle + label
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(frame,
-                        f"{current_emotion} {current_confidence:.1f}%",
-                        (x, y-10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.7,
-                        (0, 255, 0),
-                        2)
-
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-
-# ---------------- ROUTES ---------------- #
-
-@app.route('/')
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
 
-@app.route('/video')
-def video():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+# 🔥 IMAGE UPLOAD PREDICTION (VERCEL SAFE)
+@app.route("/predict", methods=["POST"])
+def predict():
+    file = request.files["image"]
 
+    img = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
-@app.route('/emotion_data')
-def emotion_data():
-    return {
-        "emotion": current_emotion,
-        "confidence": round(current_confidence, 2),
-        "quote": current_quote,
-        "activity": current_activity
-    }
+    # Resize to model input size
+    img = cv2.resize(img, (96, 96))
+    img = img.astype("float32") / 255.0
+    img = np.expand_dims(img, axis=0)
 
+    prediction = model.predict(img, verbose=0)[0]
+    index = np.argmax(prediction)
 
-# ---------------- RUN ---------------- #
+    emotion = labels[index]
+    confidence = float(prediction[index]) * 100
+
+    return jsonify({
+        "emotion": emotion,
+        "confidence": round(confidence, 2),
+        "quote": random.choice(emotion_data_map[emotion]["quotes"]),
+        "activity": emotion_data_map[emotion]["activity"]
+    })
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=8080)

@@ -1,0 +1,5 @@
+## 🚀 How to Run
+
+### 1️⃣ Install dependencies
+```bash
+pip install tensorflow opencv-python numpy

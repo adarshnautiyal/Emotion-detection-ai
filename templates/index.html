@@ -1,47 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Emotion AI Dashboard</title>
 
     <style>
         body {
             margin: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
+            font-family: "Segoe UI", Arial;
             background: radial-gradient(circle at top, #0f172a, #020617);
             color: white;
             text-align: center;
         }
 
-        /* HEADER */
         .header {
             padding: 18px;
             font-size: 24px;
             font-weight: bold;
             background: rgba(255,255,255,0.05);
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
         }
 
-        .header span {
-            color: #38bdf8;
-        }
-
-        /* MAIN CONTAINER */
         .container {
-            margin-top: 30px;
+            margin-top: 25px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        /* VIDEO CARD */
         .card {
             background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 18px;
             padding: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            border-radius: 18px;
             width: 750px;
             max-width: 95%;
         }
@@ -51,7 +40,7 @@
             border-radius: 12px;
         }
 
-        /* INFO PANEL */
+        /* PANEL */
         .panel {
             margin-top: 20px;
             width: 750px;
@@ -59,67 +48,61 @@
             padding: 20px;
             border-radius: 15px;
             background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
             text-align: left;
-            line-height: 1.6;
-        }
-
-        .title {
-            font-size: 18px;
-            color: #38bdf8;
-            margin-bottom: 10px;
         }
 
         .label {
-            font-weight: bold;
             color: #a5b4fc;
+            font-weight: bold;
         }
 
-        /* LIVE BADGE */
+        .title {
+            color: #38bdf8;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        /* ANIMATION */
+        .fade {
+            transition: all 0.4s ease;
+        }
+
+        .hide {
+            opacity: 0.2;
+            transform: translateY(5px);
+        }
+
         .badge {
-            display: inline-block;
             background: #22c55e;
             color: black;
             padding: 3px 10px;
             border-radius: 20px;
             font-size: 12px;
-            font-weight: bold;
             margin-left: 10px;
-        }
-
-        /* FOOTER */
-        .footer {
-            margin-top: 25px;
-            font-size: 13px;
-            opacity: 0.6;
         }
     </style>
 </head>
 
 <body>
 
-    <!-- HEADER -->
     <div class="header">
-        😃 Emotion Detection <span>AI Dashboard</span>
-        <span class="badge">LIVE</span>
+        😃 Emotion AI Dashboard <span class="badge">LIVE</span>
     </div>
 
-    <!-- VIDEO -->
     <div class="container">
 
         <div class="card">
             <img src="{{ url_for('video') }}">
         </div>
 
-        <!-- INFO PANEL -->
-        <div class="panel">
+        <div class="panel fade" id="panel">
 
             <div class="title">🧠 Live Emotion Analysis</div>
 
             <div><span class="label">Emotion:</span> <span id="emotion">--</span></div>
             <div><span class="label">Confidence:</span> <span id="confidence">--</span>%</div>
 
-            <hr style="margin:10px 0; opacity:0.2;">
+            <hr style="opacity:0.2; margin:10px 0;">
 
             <div><span class="label">💬 Quote:</span></div>
             <div id="quote">--</div>
@@ -131,23 +114,28 @@
 
         </div>
 
-        <div class="footer">
-            Built with Flask + OpenCV + Deep Learning AI
-        </div>
-
     </div>
 
-    <!-- JS LIVE UPDATE -->
     <script>
         function updateEmotion() {
+            const panel = document.getElementById("panel");
+
+            panel.classList.add("hide");
+
             fetch("/emotion_data")
             .then(res => res.json())
             .then(data => {
-                document.getElementById("emotion").innerText = data.emotion;
-                document.getElementById("confidence").innerText = data.confidence;
 
-                document.getElementById("quote").innerText = data.quote;
-                document.getElementById("activity").innerText = data.activity;
+                setTimeout(() => {
+                    document.getElementById("emotion").innerText = data.emotion;
+                    document.getElementById("confidence").innerText = data.confidence;
+
+                    document.getElementById("quote").innerText = data.quote;
+                    document.getElementById("activity").innerText = data.activity;
+
+                    panel.classList.remove("hide");
+
+                }, 200);
             });
         }
 

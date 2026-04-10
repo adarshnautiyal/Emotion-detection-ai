@@ -1,90 +1,60 @@
-from flask import Flask, render_template, request
-import numpy as np
+from flask import Flask, render_template, Response
 import cv2
-import os
+import numpy as np
 from tensorflow.keras.models import load_model
 
 app = Flask(__name__)
 
-# Load model
-model = load_model('model.hdf5', compile=False)
+model = load_model("model.hdf5")
 
-# Load Haar Cascade
-cascade_path = os.path.join(os.getcwd(), 'haarcascade_frontalface_default.xml')
-face_cascade = cv2.CascadeClassifier(cascade_path)
+face_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+)
 
-# Check cascade
-if face_cascade.empty():
-    print("❌ Error: Haarcascade file not loaded!")
+labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
 
-# Emotion labels
-emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
+camera = cv2.VideoCapture(0)
 
-# Home route
+
+def generate_frames():
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+        for (x, y, w, h) in faces:
+            face = frame[y:y+h, x:x+w]
+            face = cv2.resize(face, (96, 96))
+            face = face.astype("float32") / 255.0
+            face = np.expand_dims(face, axis=0)
+
+            prediction = model.predict(face, verbose=0)
+            emotion = labels[np.argmax(prediction)]
+
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.putText(frame, emotion, (x, y-10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# Prediction route
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'image' not in request.files:
-        return render_template('index.html', prediction="No file uploaded")
 
-    file = request.files['image']
+@app.route('/video')
+def video():
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
-    if file.filename == '':
-        return render_template('index.html', prediction="No file selected")
 
-    try:
-        # Convert file to OpenCV image
-        file_bytes = np.frombuffer(file.read(), np.uint8)
-        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-        if img is None:
-            return render_template('index.html', prediction="Invalid image")
-
-        # Convert to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # Detect faces
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-        # If no face found
-        if len(faces) == 0:
-            return render_template('index.html', prediction="No face detected")
-
-        # Pick largest face
-        face = max(faces, key=lambda rect: rect[2] * rect[3])
-        (x, y, w, h) = face
-
-        # Crop face
-        face_img = gray[y:y+h, x:x+w]
-
-        # Resize to 64x64 (IMPORTANT)
-        face_img = cv2.resize(face_img, (64, 64))
-
-        # Improve contrast
-        face_img = cv2.equalizeHist(face_img)
-
-        # Normalize
-        face_img = face_img / 255.0
-
-        # Reshape (IMPORTANT)
-        face_img = face_img.reshape(1, 64, 64, 1)
-
-        # Predict
-        prediction = model.predict(face_img)
-        confidence = np.max(prediction) * 100
-        emotion = emotion_labels[np.argmax(prediction)]
-
-        result = f"{emotion} ({confidence:.2f}%)"
-
-        return render_template('index.html', prediction=result)
-
-    except Exception as e:
-        return render_template('index.html', prediction=f"Error: {str(e)}")
-
-# Run app
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emotion Detector</title>
+</head>
+<body style="text-align:center; margin-top:50px;">
+
+    <h1>🔥 Emotion Detection App</h1>
+
+    <form action="/predict" method="post" enctype="multipart/form-data">
+        <input type="file" name="image" required>
+        <br><br>
+        <button type="submit">Predict Emotion</button>
+    </form>
+
+    {% if prediction %}
+        <h2>Emotion: {{ prediction }}</h2>
+    {% endif %}
+
+</body>
+</html>

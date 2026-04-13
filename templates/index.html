@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion AI | Premium Detection</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Emotion <span style="font-weight: 300;">AI</span></h1>
+            <p class="subtitle">Next-gen real-time emotion intelligence</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left Panel: Input -->
+            <div class="card">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('upload')">
+                        <i class="fa-solid fa-upload"></i> Upload
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('live')">
+                        <i class="fa-solid fa-video"></i> Live Webcam
+                    </button>
+                </div>
+
+                <div id="upload-section">
+                    <div class="viewport" id="upload-viewport">
+                        <img id="image-preview" src="" style="display: none;">
+                        <div class="placeholder" id="upload-placeholder">
+                            <i class="fa-solid fa-image"></i>
+                            <p>Select a face image to analyze</p>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <form id="upload-form">
+                            <div class="upload-btn-wrapper">
+                                <button class="btn btn-outline" type="button">
+                                    <i class="fa-solid fa-folder-open"></i> <span id="file-name-display">Choose Image</span>
+                                </button>
+                                <input type="file" name="image" id="image-input" accept="image/*" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="analyze-btn" style="margin-top: 15px;">
+                                <span id="btn-text">Analyze Emotion</span>
+                                <div class="loading-spinner" id="btn-spinner"></div>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="live-section" style="display: none;">
+                    <div class="viewport">
+                        <img id="video-feed" src="" style="display: none;">
+                        <div class="placeholder" id="video-placeholder">
+                            <i class="fa-solid fa-camera"></i>
+                            <p>Camera is starting...</p>
+                        </div>
+                    </div>
+                    <div class="controls" style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                        <p><i class="fa-solid fa-circle-info"></i> Highlighting faces with real-time analysis</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="card">
+                <h2 style="margin-top: 0; font-weight: 600; font-size: 1.2rem; text-transform: uppercase; color: var(--text-muted);">Analysis Results</h2>
+                
+                <div class="results">
+                    <div class="stat-box">
+                        <div class="stat-label">Detected Emotion</div>
+                        <div class="stat-value" id="res-emotion">--</div>
+                    </div>
+
+                    <div class="stat-box" style="border-left-color: var(--accent);">
+                        <div class="stat-label">Confidence Score</div>
+                        <div class="stat-value" id="res-confidence">--</div>
+                    </div>
+
+                    <div class="stat-box" style="background: transparent; border-left: none; padding-left: 0;">
+                        <div class="stat-label">Perspective</div>
+                        <div class="quote-box" id="res-quote">"Emotions are the colors of the soul, uniquely expressed in every moment."</div>
+                    </div>
+
+                    <div class="stat-box" style="background: rgba(56, 189, 248, 0.1); border-left-color: #facc15;">
+                        <div class="stat-label">Recommended Action</div>
+                        <div id="res-activity" style="color: #facc15; font-weight: 600;">Awaiting input...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadSection = document.getElementById('upload-section');
+        const liveSection = document.getElementById('live-section');
+        const videoFeed = document.getElementById('video-feed');
+        const videoPlaceholder = document.getElementById('video-placeholder');
+        const imageInput = document.getElementById('image-input');
+        const imagePreview = document.getElementById('image-preview');
+        const uploadPlaceholder = document.getElementById('upload-placeholder');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const btnText = document.getElementById('btn-text');
+        const btnSpinner = document.getElementById('btn-spinner');
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (tab === 'upload') {
+                event.target.closest('button').classList.add('active');
+                uploadSection.style.display = 'block';
+                liveSection.style.display = 'none';
+                videoFeed.src = "";
+                videoFeed.style.display = 'none';
+                videoPlaceholder.style.display = 'flex';
+            } else {
+                event.target.closest('button').classList.add('active');
+                uploadSection.style.display = 'none';
+                liveSection.style.display = 'block';
+                videoFeed.src = "{{ url_for('video_feed') }}";
+                videoFeed.onload = () => {
+                    videoPlaceholder.style.display = 'none';
+                    videoFeed.style.display = 'block';
+                };
+            }
+        }
+
+        imageInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                fileNameDisplay.textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    uploadPlaceholder.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            analyzeBtn.disabled = true;
+            btnText.textContent = "Processing...";
+            btnSpinner.style.display = "block";
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('res-emotion').textContent = data.emotion;
+                    document.getElementById('res-confidence').textContent = data.confidence + "%";
+                    document.getElementById('res-quote').textContent = `"${data.quote}"`;
+                    document.getElementById('res-activity').textContent = data.activity;
+                    
+                    // Add a pulse effect to the value
+                    document.getElementById('res-emotion').classList.add('pulse');
+                    setTimeout(() => document.getElementById('res-emotion').classList.remove('pulse'), 500);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("An error occurred during analysis.");
+            } finally {
+                analyzeBtn.disabled = false;
+                btnText.textContent = "Analyze Emotion";
+                btnSpinner.style.display = "none";
+            }
+        });
+    </script>
+
+    <style>
+        .pulse {
+            animation: pulse-animation 0.5s ease-in-out;
+        }
+        @keyframes pulse-animation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</body>
+</html>

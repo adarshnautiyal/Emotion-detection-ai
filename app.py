@@ -58,7 +58,6 @@ net = cv2.dnn.readNetFromCaffe(
     "models/res10_300x300_ssd_iter_140000.caffemodel"
 )
 
-
 emotion_data_map = {
     "Angry": {
         "quotes": ["Calm mind brings strength.", "Pause before reacting.", "Anger fades with patience."],
